@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactieve Kalender</title>
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid black;
+            padding: 8px;
+            text-align: center;
+        }
+        .done { background-color: lightgreen; }
+        .pending { background-color: orange; }
+        .missed { background-color: red; }
+    </style>
+    <script>
+        function toggleCheckbox(checkbox, rowId) {
+            const row = document.getElementById(rowId);
+            if (checkbox.checked) {
+                row.classList.add('done');
+                row.classList.remove('pending', 'missed');
+            } else {
+                row.classList.add('pending');
+                row.classList.remove('done', 'missed');
+            }
+            updateTaskCount();
+            saveData();
+        }
+
+        function updateTaskCount() {
+            let doneCount = document.querySelectorAll('.done').length;
+            let pendingCount = document.querySelectorAll('.pending').length;
+            let missedCount = document.querySelectorAll('.missed').length;
+            document.getElementById('taskCount').textContent = `Voltooid: ${doneCount} | Open: ${pendingCount} | Gemist: ${missedCount}`;
+        }
+
+        function saveData() {
+            let data = [];
+            document.querySelectorAll('tr[data-date]').forEach(row => {
+                let task = row.querySelector('.task-input').innerText;
+                let checked = row.querySelector('input[type=checkbox]').checked;
+                data.push({ date: row.dataset.date, task, checked });
+            });
+            localStorage.setItem('calendarData', JSON.stringify(data));
+        }
+
+        function loadData() {
+            let data = JSON.parse(localStorage.getItem('calendarData')) || [];
+            data.forEach(entry => {
+                let row = document.querySelector(`tr[data-date='${entry.date}']`);
+                if (row) {
+                    row.querySelector('.task-input').innerText = entry.task;
+                    let checkbox = row.querySelector('input[type=checkbox]');
+                    checkbox.checked = entry.checked;
+                    toggleCheckbox(checkbox, row.id);
+                }
+            });
+            updateTaskCount();
+        }
+
+        function setMissedTasks() {
+            let today = new Date().toISOString().split('T')[0];
+            document.querySelectorAll('tr[data-date]').forEach(row => {
+                if (row.dataset.date < today && !row.querySelector('input[type=checkbox]').checked) {
+                    row.classList.add('missed');
+                    row.classList.remove('done', 'pending');
+                }
+            });
+            updateTaskCount();
+        }
+
+        function dailyReminder() {
+            let now = new Date();
+            if (now.getHours() === 7 && now.getMinutes() === 0) {
+                let today = new Date().toISOString().split('T')[0];
+                let todayTasks = document.querySelector(`tr[data-date='${today}'] .task-input`);
+                alert(`Je taken voor vandaag:\n${todayTasks ? todayTasks.innerText : 'Geen taken ingevoerd.'}`);
+            }
+        }
+
+        function toggleMobileView() {
+            document.body.classList.toggle('mobile-view');
+        }
+
+        window.onload = function () {
+            loadData();
+            setMissedTasks();
+            setInterval(dailyReminder, 60000);
+        }
+    </script>
+</head>
+<body>
+    <h2>Kalender (Vandaag - 27 Juli)</h2>
+    <button onclick="toggleMobileView()">Schakel Mobiele Weergave</button>
+    <p id="taskCount">Voltooid: 0 | Open: 0 | Gemist: 0</p>
+    <table>
+        <tr>
+            <th>Datum</th>
+            <th>Dag</th>
+            <th>Taken</th>
+            <th>Gedaan</th>
+        </tr>
+        <tbody id="calendarBody"></tbody>
+    </table>
+    <script>
+        const days = ["Zo", "Ma", "Di", "Wo", "Do", "Vr", "Za"];
+        let startDate = new Date();
+        let endDate = new Date("2024-07-27");
+        let calendarBody = document.getElementById('calendarBody');
+        
+        while (startDate <= endDate) {
+            let dateString = startDate.toISOString().split('T')[0];
+            let dayName = days[startDate.getDay()];
+            let row = document.createElement('tr');
+            row.id = `row-${dateString}`;
+            row.dataset.date = dateString;
+            row.innerHTML = `
+                <td>${dateString}</td>
+                <td>${dayName}</td>
+                <td class='task-input' contenteditable='true'></td>
+                <td><input type='checkbox' onclick='toggleCheckbox(this, "row-${dateString}")'></td>
+            `;
+            calendarBody.appendChild(row);
+            startDate.setDate(startDate.getDate() + 1);
+        }
+        loadData();
+    </script>
+</body>
+</html>
+
